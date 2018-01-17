@@ -1,60 +1,84 @@
 ﻿using FileSystemVisitorLibrary.Data;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
 namespace FileSystemVisitorLibrary
 {
-    public class SystemWalkerEventArgs : EventArgs
+    public class SystemVisitorEventArgs : EventArgs
     {
-        public FileSystemItem Entity { get; set; }
+        public bool IsStop { get; set; }
+        public bool IsSkip { get; set; }
+        public FileSystemItem FoundItem { get; set; }
     }
 
-    public class FileSystemVisitor
+    public class FileSystemVisitor : IEnumerable
     {
+        private readonly string _path;
+        private int _count;
+        private bool _isStop;
+        private bool _isSkip;
+        private Func<FileSystemItem, bool> _filter;
 
-        protected virtual void OnStart(SystemWalkerEventArgs e)
+        public FileSystemVisitor() => _filter = ((item) => true);
+
+        public FileSystemVisitor(Func<FileSystemItem, bool> filter, string path)
+        {
+            _path = path;
+            _filter = filter;
+        }
+
+
+        protected virtual void OnStart(SystemVisitorEventArgs e)
         {
             Started?.Invoke(this, e);
         }
 
-        public event EventHandler<SystemWalkerEventArgs> Finished;
+        public event EventHandler<SystemVisitorEventArgs> Finished;
 
-        protected virtual void OnFinish(SystemWalkerEventArgs e)
+        protected virtual void OnFinish(SystemVisitorEventArgs e)
         {
             Finished?.Invoke(this, e);
         }
 
-        public event EventHandler<SystemWalkerEventArgs> Found;
+        public event EventHandler<SystemVisitorEventArgs> Found;
 
-        protected virtual void OnFound(SystemWalkerEventArgs e)
+        protected virtual void OnFound(SystemVisitorEventArgs e)
         {
             Found?.Invoke(this, e);
         }
 
-        public event EventHandler<SystemWalkerEventArgs> Started;
+        public event EventHandler<SystemVisitorEventArgs> Started;
 
-        public IEnumerable<FileSystemItem> FileSystemVisit(string rootPath)
+        private IEnumerable<FileSystemItem> GetFileSystemEnumerable()
         {
-            if (Directory.Exists(rootPath))
+            if (Directory.Exists(_path))
             {
-                SystemWalkerEventArgs args = new SystemWalkerEventArgs();
- 
+                SystemVisitorEventArgs args = new SystemVisitorEventArgs();
                 OnStart(null);
-                foreach (var item in DyrectoryVisit(rootPath))
+                foreach (var item in DyrectoryVisit(_path))
                 {
-                    args.Entity = item;
-                    OnFound(args);
-                    yield return item;
+                    if (!args.IsStop)
+                    {
+                        args.FoundItem = item;
+                        OnFound(args);
+                        yield return item;
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
                 OnFinish(null);
             }
         }
 
-        public static IEnumerable<FileSystemItem> DyrectoryVisit(string rootPath)
+        private IEnumerable<FileSystemItem> DyrectoryVisit(string rootPath)
         {
             if (Directory.Exists(rootPath))
             {
+
                 DirectoryInfo dir = new DirectoryInfo(rootPath);
                 yield return new FileSystemItem()
                 {
@@ -93,17 +117,21 @@ namespace FileSystemVisitorLibrary
                 {
                     dirs = null;
                 }
-                if (dirs != null && dirs.Length > 0)
-                    foreach (var directory in dirs)
-                    {
-                        foreach (var item in DyrectoryVisit(directory))
-                        {
-                            yield return item;
-                        }
-                    }
 
+                if (dirs != null && dirs.Length > 0)
+                  foreach (var directory in dirs)
+                  {
+                      foreach (var item in DyrectoryVisit(directory))
+                      {
+                          yield return item;
+                      }
+                  }
             }
         }
-    }
 
+        public IEnumerator GetEnumerator()
+        {
+            return GetFileSystemEnumerable().GetEnumerator();
+        }
+    }
 }

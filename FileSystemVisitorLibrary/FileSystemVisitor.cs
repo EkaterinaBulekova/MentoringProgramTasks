@@ -3,83 +3,125 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace FileSystemVisitorLibrary
 {
     public class SystemVisitorEventArgs : EventArgs
     {
+        public int Count { get; set; }
         public bool IsStop { get; set; }
         public bool IsSkip { get; set; }
         public FileSystemItem FoundItem { get; set; }
     }
 
-    public class FileSystemVisitor : IEnumerable
+    public class FileSystemVisitor : IEnumerable<FileSystemItem>
     {
-        private readonly string _path;
+        private string _path;
+        private int _level;
         private int _count;
         private bool _isStop;
         private bool _isSkip;
         private Func<FileSystemItem, bool> _filter;
 
-        public FileSystemVisitor() => _filter = ((item) => true);
-
-        public FileSystemVisitor(Func<FileSystemItem, bool> filter, string path)
+        public FileSystemVisitor(string path, Func<FileSystemItem, bool> filter = null)
         {
+            _count = 0;
+            _level = 0;
             _path = path;
             _filter = filter;
         }
 
+        public event EventHandler<SystemVisitorEventArgs> Finish;
+        public event EventHandler<SystemVisitorEventArgs> Start;
+        public event EventHandler<SystemVisitorEventArgs> FileFound;
+        public event EventHandler<SystemVisitorEventArgs> DirectoryFound;
+        public event EventHandler<SystemVisitorEventArgs> FilteredFileFound;
+        public event EventHandler<SystemVisitorEventArgs> FilteredDirectoryFound;
 
         protected virtual void OnStart(SystemVisitorEventArgs e)
         {
-            Started?.Invoke(this, e);
+            Start?.Invoke(this, e);
         }
 
-        public event EventHandler<SystemVisitorEventArgs> Finished;
+        protected virtual void OnFinish(SystemVisitorEventArgs e) => Finish?.Invoke(this, e);
 
-        protected virtual void OnFinish(SystemVisitorEventArgs e)
+        protected virtual void OnFileFound(SystemVisitorEventArgs e)
         {
-            Finished?.Invoke(this, e);
+            FileFound?.Invoke(this, e);
+            _isStop = e.IsStop;
+            _isSkip = e.IsSkip;
         }
 
-        public event EventHandler<SystemVisitorEventArgs> Found;
-
-        protected virtual void OnFound(SystemVisitorEventArgs e)
+        protected virtual void OnDirectoryFound(SystemVisitorEventArgs e)
         {
-            Found?.Invoke(this, e);
+            DirectoryFound?.Invoke(this, e);
+            _isStop = e.IsStop;
+            _isSkip = e.IsSkip;
         }
 
-        public event EventHandler<SystemVisitorEventArgs> Started;
+        protected virtual void OnFilteredFileFound(SystemVisitorEventArgs e)
+        {
+            FilteredFileFound?.Invoke(this, e);
+            _isStop = e.IsStop;
+            _isSkip = e.IsSkip;
+        }
+
+        protected virtual void OnFilteredDirectoryFound(SystemVisitorEventArgs e)
+        {
+            FilteredDirectoryFound?.Invoke(this, e);
+            _isStop = e.IsStop;
+            _isSkip = e.IsSkip;
+        }
 
         private IEnumerable<FileSystemItem> GetFileSystemEnumerable()
         {
-            if (Directory.Exists(_path))
+            OnStart(null);
+            var filteredFiles = GetFileSystemItems().Where(_filter).ToList();
+            foreach (var fileSystemItem in GetFileSystemItems())
             {
-                SystemVisitorEventArgs args = new SystemVisitorEventArgs();
-                OnStart(null);
-                foreach (var item in DyrectoryVisit(_path))
+                var isFile = fileSystemItem.Type == FileSystemItemType.File;
+                var e = new  SystemVisitorEventArgs{ Count = _count, IsStop = false, IsSkip = false, FoundItem = fileSystemItem};
+
+                if (isFile)
                 {
-                    if (!args.IsStop)
+                    OnFileFound(e);
+                }
+                else
+                {
+                    OnDirectoryFound(e);
+                }
+                 
+                if (filteredFiles.Contains(fileSystemItem))
+                {
+                    if (isFile)
                     {
-                        args.FoundItem = item;
-                        OnFound(args);
-                        yield return item;
+                        OnFilteredFileFound(e);
                     }
                     else
                     {
-                        break;
+                        OnFilteredDirectoryFound(e);
                     }
+
+                    yield return fileSystemItem;
                 }
-                OnFinish(null);
             }
+            OnFinish(null);
         }
 
-        private IEnumerable<FileSystemItem> DyrectoryVisit(string rootPath)
-        {
-            if (Directory.Exists(rootPath))
-            {
 
-                DirectoryInfo dir = new DirectoryInfo(rootPath);
+        private IEnumerable<FileSystemItem> GetFileSystemItems()
+        {
+            //if(_level == 0)
+            //{
+            //    OnStart(null);
+            //}
+
+            //_level++;
+            if (Directory.Exists(_path))
+            {
+                _count++;
+                DirectoryInfo dir = new DirectoryInfo(_path);
                 yield return new FileSystemItem()
                 {
                     Name = dir.Name,
@@ -89,7 +131,7 @@ namespace FileSystemVisitorLibrary
                 string[] files;
                 try
                 {
-                    files = Directory.GetFiles(rootPath);
+                    files = Directory.GetFiles(_path);
                 }
                 catch
                 {
@@ -111,7 +153,7 @@ namespace FileSystemVisitorLibrary
                 string[] dirs;
                 try
                 {
-                    dirs = Directory.GetDirectories(rootPath);
+                    dirs = Directory.GetDirectories(_path);
                 }
                 catch
                 {
@@ -121,17 +163,29 @@ namespace FileSystemVisitorLibrary
                 if (dirs != null && dirs.Length > 0)
                   foreach (var directory in dirs)
                   {
-                      foreach (var item in DyrectoryVisit(directory))
+                      _path = directory;
+                      foreach (var item in GetFileSystemEnumerable())
                       {
                           yield return item;
                       }
                   }
             }
+
+            //_level--;
+            //if (_level == 0)
+            //{
+            //    OnFinish(null);
+            //}
         }
 
-        public IEnumerator GetEnumerator()
+        public IEnumerator<FileSystemItem> GetEnumerator()
         {
             return GetFileSystemEnumerable().GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetFileSystemEnumerable()?.GetEnumerator() ?? throw new InvalidOperationException();
         }
     }
 }

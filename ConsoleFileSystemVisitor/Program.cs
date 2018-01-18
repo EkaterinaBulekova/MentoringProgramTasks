@@ -1,38 +1,38 @@
 ﻿using System;
 using FileSystemVisitorLibrary;
 
-
-namespace ConsoleFileSistemWalker
+namespace ConsoleFileSystemVisitor
 {
     class Program
     {
-        static int count = 0;
+        private static int count = 0;
         static void Main(string[] args)
         {
-            var visitor = new FileSystemVisitor();
-            visitor.Started += start_reaction;
-            visitor.Finished += finish_reaction;
-            visitor.Found += find_reaction;
+            var _skip = 5;
+            var _stop = 20;
+            var visitor = new FileSystemVisitor("d:/MyProject", (x) => x.Date >= new DateTime(2018, 01, 18));
+            visitor.Started += (o, eventArgs) => Console.WriteLine("Start !!!");
+            visitor.Finished += (o, eventArgs) => Console.WriteLine("Finish !!!");
+            visitor.Found += (o, eventArgs) =>
+            {
+                if (eventArgs.IsSkip)
+                {
 
-            
-            foreach (var item in visitor.FileSystemVisit("d:/MyProject"))
+                }
+                Console.WriteLine($"Found - {eventArgs.FoundItem.Name} !!!");
+            };
+
+
+
+            foreach (var item in visitor)
             {
                 Console.WriteLine($"{item.Name} - {item.Type} - {item.Date}");
             }
 
-            Console.ReadLine();
+            Console.ReadKey();
         }
 
-        static void start_reaction(object sender, SystemVisitorEventArgs e)
-        {
-            Console.WriteLine("Start !!!");
-        }
-
-        static void finish_reaction(object sender, SystemVisitorEventArgs e)
-        {
-            Console.WriteLine("Finish !!!");
-        }
-
+ 
         static void find_reaction(object sender, SystemVisitorEventArgs e)
         {
             if (count <= 10)

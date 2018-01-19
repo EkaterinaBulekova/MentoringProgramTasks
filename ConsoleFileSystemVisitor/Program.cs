@@ -5,24 +5,18 @@ namespace ConsoleFileSystemVisitor
 {
     class Program
     {
-        private static int count = 0;
         static void Main(string[] args)
         {
-            var _skip = 5;
-            var _stop = 20;
-            var visitor = new FileSystemVisitor("d:/MyProject", (x) => x.Date >= new DateTime(2018, 01, 18));
-            visitor.Started += (o, eventArgs) => Console.WriteLine("Start !!!");
-            visitor.Finished += (o, eventArgs) => Console.WriteLine("Finish !!!");
-            visitor.Found += (o, eventArgs) =>
-            {
-                if (eventArgs.IsSkip)
-                {
-
-                }
-                Console.WriteLine($"Found - {eventArgs.FoundItem.Name} !!!");
-            };
-
-
+            var _skipLimit = 2;
+//            var _skipStart = 10;
+            var _stopLimit = 5;
+            var visitor = new FileSystemVisitor("d:/MyProject");//, (x) => x.Date >= new DateTime(2018, 01, 18));
+            visitor.Start += (o, eventArgs) => Console.WriteLine("Start !!!");
+            visitor.Finish += (o, eventArgs) => Console.WriteLine("Finish !!!");
+            visitor.FileFound += (o, eventArgs) => Console.WriteLine($"File {eventArgs.FoundItem.Name} found!!!", eventArgs.IsSkip=(eventArgs.SkippedCount < _skipLimit)?true:false,  eventArgs.IsStop=(eventArgs.FilteredCount >= _stopLimit)?true:false);
+            visitor.DirectoryFound += (o, eventArgs) => Console.WriteLine($"Directory {eventArgs.FoundItem.Name} found!!!", eventArgs.IsSkip = (eventArgs.SkippedCount < _skipLimit) ? true : false, eventArgs.IsStop = (eventArgs.FilteredCount >= _stopLimit) ? true : false);
+            visitor.FilteredFileFound += (o, eventArgs) => Console.WriteLine($"Filtered File {eventArgs.FoundItem.Name} found!!!", eventArgs.IsSkip = (eventArgs.SkippedCount < _skipLimit) ? true : false, eventArgs.IsStop = (eventArgs.FilteredCount >= _stopLimit) ? true : false);
+            visitor.FilteredDirectoryFound += (o, eventArgs) => Console.WriteLine($"Filtered Directory {eventArgs.FoundItem.Name} found!!!", eventArgs.IsSkip = (eventArgs.SkippedCount < _skipLimit) ? true : false, eventArgs.IsStop = (eventArgs.FilteredCount >= _stopLimit) ? true : false);
 
             foreach (var item in visitor)
             {
@@ -30,20 +24,6 @@ namespace ConsoleFileSystemVisitor
             }
 
             Console.ReadKey();
-        }
-
- 
-        static void find_reaction(object sender, SystemVisitorEventArgs e)
-        {
-            if (count <= 10)
-            {
-                Console.WriteLine("Found {0}!!!", e.FoundItem.Name);
-                count++;
-            }
-            else
-            {
-                e.IsStop = true;
-            }
         }
     }
 }

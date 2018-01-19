@@ -9,7 +9,8 @@ namespace FileSystemVisitorLibrary
 {
     public class SystemVisitorEventArgs : EventArgs
     {
-        public int Count { get; set; }
+        public int SkippedCount { get; set; }
+        public int FilteredCount { get; set; }
         public bool IsStop { get; set; }
         public bool IsSkip { get; set; }
         public FileSystemItem FoundItem { get; set; }
@@ -19,17 +20,19 @@ namespace FileSystemVisitorLibrary
     {
         private string _path;
         private int _level;
-        private int _count;
+        private int _filteredCount;
+        private int _skippedCount;
         private bool _isStop;
         private bool _isSkip;
         private Func<FileSystemItem, bool> _filter;
 
         public FileSystemVisitor(string path, Func<FileSystemItem, bool> filter = null)
         {
-            _count = 0;
+            _filteredCount = 0;
+            _skippedCount = 0;
             _level = 0;
             _path = path;
-            _filter = filter;
+            _filter = filter != null ? filter : (_) => true;
         }
 
         public event EventHandler<SystemVisitorEventArgs> Finish;
@@ -76,106 +79,73 @@ namespace FileSystemVisitorLibrary
 
         private IEnumerable<FileSystemItem> GetFileSystemEnumerable()
         {
-            OnStart(null);
-            var filteredFiles = GetFileSystemItems().Where(_filter).ToList();
-            foreach (var fileSystemItem in GetFileSystemItems())
+            if (_level == 0)
             {
-                var isFile = fileSystemItem.Type == FileSystemItemType.File;
-                var e = new  SystemVisitorEventArgs{ Count = _count, IsStop = false, IsSkip = false, FoundItem = fileSystemItem};
+                OnStart(null);
+            }
 
-                if (isFile)
+            _level++;
+            if (Directory.Exists(_path))
+            {
+                List<FileSystemItem> entities = new List<FileSystemItem>();
+                try
                 {
-                    OnFileFound(e);
+                    entities = Directory.GetFileSystemEntries(_path).Select(_ => Directory.Exists(_) ? new FileSystemItem(new DirectoryInfo(_)) : new FileSystemItem(new FileInfo(_))).ToList();
                 }
-                else
+                catch
                 {
-                    OnDirectoryFound(e);
                 }
-                 
-                if (filteredFiles.Contains(fileSystemItem))
+
+                var filtered = entities.Where(_filter).ToList();
+                foreach (var entity in entities)
                 {
+                   
+                    _filteredCount++;
+                    var isFile = entity.Type == FileSystemItemType.File;
+                    var args = new SystemVisitorEventArgs { FilteredCount = _filteredCount, SkippedCount = _skippedCount, IsStop = false, IsSkip = false, FoundItem = entity };
                     if (isFile)
                     {
-                        OnFilteredFileFound(e);
+                        OnFileFound(args);
+                            if (_isStop) yield break;
                     }
                     else
                     {
-                        OnFilteredDirectoryFound(e);
+                        OnDirectoryFound(args);
+                            if (_isStop) yield break;
                     }
-
-                    yield return fileSystemItem;
-                }
-            }
-            OnFinish(null);
-        }
-
-
-        private IEnumerable<FileSystemItem> GetFileSystemItems()
-        {
-            //if(_level == 0)
-            //{
-            //    OnStart(null);
-            //}
-
-            //_level++;
-            if (Directory.Exists(_path))
-            {
-                _count++;
-                DirectoryInfo dir = new DirectoryInfo(_path);
-                yield return new FileSystemItem()
-                {
-                    Name = dir.Name,
-                    Type = FileSystemItemType.Directory,
-                    Date = dir.LastWriteTime
-                };
-                string[] files;
-                try
-                {
-                    files = Directory.GetFiles(_path);
-                }
-                catch
-                {
-                    files = null;
-                }
-
-                if (files != null && files.Length > 0)
-                    foreach (string f in files)
+                    if (filtered.Contains(entity)&& !_isSkip)
                     {
-                        FileInfo file = new FileInfo(f);
-                        yield return new FileSystemItem()
+                        if (isFile)
                         {
-                            Name = file.Name,
-                            Type = FileSystemItemType.File,
-                            Date = file.LastWriteTime
-                        };
+                            OnFilteredFileFound(args);
+                            if (_isStop) yield break;
+                            yield return entity;
+                        }
+                        else
+                        {
+                            OnFilteredDirectoryFound(args);
+                            if (_isStop) yield break;
+                            yield return entity;
+                            _path = entity.Name;
+                            foreach (var item in GetFileSystemEnumerable())
+                            {
+                                yield return item;
+                            }
+                        }
                     }
-
-                string[] dirs;
-                try
-                {
-                    dirs = Directory.GetDirectories(_path);
+                    else
+                    {
+                        if (_isSkip) _skippedCount++;
+                        _filteredCount--;
+                    }
                 }
-                catch
-                {
-                    dirs = null;
-                }
-
-                if (dirs != null && dirs.Length > 0)
-                  foreach (var directory in dirs)
-                  {
-                      _path = directory;
-                      foreach (var item in GetFileSystemEnumerable())
-                      {
-                          yield return item;
-                      }
-                  }
             }
 
-            //_level--;
-            //if (_level == 0)
-            //{
-            //    OnFinish(null);
-            //}
+            _level--;
+            if (_level == 0)
+            {
+                OnFinish(null);
+            }
         }
 
         public IEnumerator<FileSystemItem> GetEnumerator()

@@ -1,22 +1,40 @@
 ﻿using System;
 using FileSystemVisitorLibrary;
+using FileSystemVisitorLibrary.Data;
 
 namespace ConsoleFileSystemVisitor
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main()
         {
-            var _skipLimit = 2;
-//            var _skipStart = 10;
-            var _stopLimit = 5;
-            var visitor = new FileSystemVisitor("d:/MyProject");//, (x) => x.Date >= new DateTime(2018, 01, 18));
+            var stringForSkip = "vs";
+            var stringForStop = "sln";
+            var visitor = new FileSystemVisitor("d:/MyProject", (x) => x.Date <= new DateTime(2018, 01, 18) && x.Type == FileSystemItemType.File && x.Name.Contains("sln"));
             visitor.Start += (o, eventArgs) => Console.WriteLine("Start !!!");
             visitor.Finish += (o, eventArgs) => Console.WriteLine("Finish !!!");
-            visitor.FileFound += (o, eventArgs) => Console.WriteLine($"File {eventArgs.FoundItem.Name} found!!!", eventArgs.IsSkip=(eventArgs.SkippedCount < _skipLimit)?true:false,  eventArgs.IsStop=(eventArgs.FilteredCount >= _stopLimit)?true:false);
-            visitor.DirectoryFound += (o, eventArgs) => Console.WriteLine($"Directory {eventArgs.FoundItem.Name} found!!!", eventArgs.IsSkip = (eventArgs.SkippedCount < _skipLimit) ? true : false, eventArgs.IsStop = (eventArgs.FilteredCount >= _stopLimit) ? true : false);
-            visitor.FilteredFileFound += (o, eventArgs) => Console.WriteLine($"Filtered File {eventArgs.FoundItem.Name} found!!!", eventArgs.IsSkip = (eventArgs.SkippedCount < _skipLimit) ? true : false, eventArgs.IsStop = (eventArgs.FilteredCount >= _stopLimit) ? true : false);
-            visitor.FilteredDirectoryFound += (o, eventArgs) => Console.WriteLine($"Filtered Directory {eventArgs.FoundItem.Name} found!!!", eventArgs.IsSkip = (eventArgs.SkippedCount < _skipLimit) ? true : false, eventArgs.IsStop = (eventArgs.FilteredCount >= _stopLimit) ? true : false);
+            visitor.FileFound += (o, eventArgs) => Console.WriteLine($"File {eventArgs.FoundItem.Name} found!!!");
+            visitor.DirectoryFound += (o, eventArgs) => Console.WriteLine($"Directory {eventArgs.FoundItem.Name} found!!!");
+            visitor.FilteredFileFound += (o, eventArgs) =>
+            {
+                Console.WriteLine($"Filtered File {eventArgs.FoundItem.Name} found!!!");
+                eventArgs.IsSkip = false;
+                eventArgs.IsStop = false;
+                if (eventArgs.FoundItem.Name.Contains(stringForSkip))
+                    eventArgs.IsSkip = true;
+                if (eventArgs.FoundItem.Name.Contains(stringForStop))
+                    eventArgs.IsSkip = true;
+            };
+            visitor.FilteredDirectoryFound += (o, eventArgs) =>
+            {
+                Console.WriteLine($"Filtered Directory {eventArgs.FoundItem.Name} found!!!");
+                eventArgs.IsSkip = false;
+                eventArgs.IsStop = false;
+                if (eventArgs.FoundItem.Name.Contains(stringForSkip))
+                    eventArgs.IsSkip = true;
+                if (eventArgs.FoundItem.Name.Contains(stringForStop))
+                    eventArgs.IsSkip = true;
+            };
 
             foreach (var item in visitor)
             {

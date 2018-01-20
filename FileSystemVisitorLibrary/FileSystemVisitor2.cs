@@ -141,15 +141,19 @@ namespace FileSystemVisitorLibrary
                     // ignored
                 }
 
-                var result = new List<FileSystemItem>() {new FileSystemItem(path)}.Union(directoryItems.Where(_ =>
-                        _.Type == FileSystemItemType.File)).ToList();
-                directoryItems.Where(entity => entity.Type == FileSystemItemType.Directory)
-                    .Select(entity => GetFileSystemItems(entity.Name))
-                    .ToList().ForEach(entities => result.Concat(entities));
-                return result;
+                foreach (var entity in directoryItems)
+                {
+                    var isFile = entity.Type == FileSystemItemType.File;
+                    yield return entity;
+                    if (!isFile)
+                    {
+                        foreach (var item in GetFileSystemItems(entity.Name))
+                        {
+                            yield return item;
+                        }
+                    }
+                }
             }
-
-            return new List<FileSystemItem>();
         }
 
         /// <summary>

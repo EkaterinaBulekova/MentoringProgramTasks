@@ -1,16 +1,17 @@
-﻿using FileSystemVisitorLibrary.Data;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using FileSystemVisitorLibrary.Data;
+using FileSystemVisitorLibrary.Infrastructure;
+
 
 namespace FileSystemVisitorLibrary
 {
     public class FileSystemVisitor : IEnumerable<FileSystemItem>
     {
+        private readonly IFileSystemInfoProvider _fileSystemProvaider;
         private readonly string _path;
-        private int _level;
         private bool _isStop;
         private bool _isSkip;
         private readonly Func<FileSystemItem, bool> _filter;
@@ -19,11 +20,12 @@ namespace FileSystemVisitorLibrary
         /// Initializes a new instance of the FileSystemVisitor class on the specified
         //     path.
         /// </summary>
+        /// <param name="provider"> A IFileSystemInfoProvaider that alows get collection of FileSystemItems. </param>
         /// <param name="path"> A string specifying the path on which to create the DirectoryInfo. </param>
         /// <param name="filter"> A delegete which reference to filtering method </param>
-        public FileSystemVisitor(string path, Func<FileSystemItem, bool> filter = null)
+        public FileSystemVisitor(IFileSystemInfoProvider provider, string path, Func<FileSystemItem, bool> filter = null)
         {
-            _level = 0;
+            _fileSystemProvaider = provider;
             _path = path;
             _filter = filter ?? (_ => true);
         }
@@ -31,12 +33,12 @@ namespace FileSystemVisitorLibrary
         /// Represents the method that will handle an event Finish when the event provides data.
         /// </summary>
         public event EventHandler<SystemVisitorEventArgs> Finish;
-       
+
         /// <summary>
         /// Represents the method that will handle an event Start when the event provides data.
         /// </summary>
         public event EventHandler<SystemVisitorEventArgs> Start;
-        
+
         /// <summary>
         /// Represents the method that will handle an event FileFound when the event provides data.
         /// </summary>
@@ -79,88 +81,55 @@ namespace FileSystemVisitorLibrary
             _isSkip = e.IsSkip;
         }
 
-        private IEnumerable<FileSystemItem> GetFileSystemEnumerable(string path)
+        private IEnumerable<FileSystemItem> GetFileSystemEnumerable(IEnumerable<FileSystemItem> entities)
         {
-            if (_level == 0)
+            OnStart(null);
+            var fileSystemItems = entities.ToList();
+            var filteredEntities = fileSystemItems.Where(_filter).ToList();
+            foreach (var entity in fileSystemItems)
             {
-                OnStart(null);
-            }
-
-            _level++;
-            if (Directory.Exists(path))
-            {
-                List<FileSystemItem> entities = new List<FileSystemItem>();
-                try
+                var isFile = entity.Type == FileSystemItemType.File;
+                var args = new SystemVisitorEventArgs
                 {
-                    entities = Directory.GetFileSystemEntries(path).Select(_ => new FileSystemItem(_)).ToList();
+                    IsStop = false,
+                    IsSkip = false,
+                    FoundItem = entity
+                };
+                if (isFile)
+                {
+                    OnFileFound(args);
                 }
-                catch
+                else
                 {
-                    // ignored
+                    OnDirectoryFound(args);
                 }
 
-                var filtered = entities.Where(_filter).ToList();
-                foreach (var entity in entities)
+                if (filteredEntities.Contains(entity))
                 {
-                   
-                    var isFile = entity.Type == FileSystemItemType.File;
-                    var args = new SystemVisitorEventArgs
-                    {
-                        IsStop = false,
-                        IsSkip = false,
-                        FoundItem = entity
-                    };
                     if (isFile)
                     {
-                        OnFileFound(args);
+                        OnFilteredFileFound(args);
                     }
                     else
                     {
-                        OnDirectoryFound(args);
+                        OnFilteredDirectoryFound(args);
                     }
 
-                    if (filtered.Contains(entity))
+                    if (_isStop)
                     {
-                        if (isFile)
-                        {
-                            OnFilteredFileFound(args);
-                            if (_isStop)
-                            {
-                                yield break;
-                            }
+                        yield break;
+                    }
 
-                            if (!_isSkip)
-                            {
-                                yield return entity;
-                            }
-                        }
-                        else
-                        {
-                            OnFilteredDirectoryFound(args);
-                            if (_isStop)
-                            {
-                                yield break;
-                            }
+                    if (!_isSkip)
+                    {
+                        yield return entity;
 
-                            if (!_isSkip)
-                            {
-                                yield return entity;
-                                foreach (var item in GetFileSystemEnumerable(entity.Name))
-                                {
-                                    yield return item;
-                                }
-                            }
-                        }
                     }
                 }
             }
-
-            _level--;
-            if (_level == 0)
-            {
-                OnFinish(null);
-            }
+            OnFinish(null);
         }
+
 
         /// <summary>
         /// Returns an enumerator that iterates throw the collection of FileSystemItem  
@@ -168,7 +137,7 @@ namespace FileSystemVisitorLibrary
         /// <returns></returns>
         public IEnumerator<FileSystemItem> GetEnumerator()
         {
-            return GetFileSystemEnumerable(_path).GetEnumerator();
+            return GetFileSystemEnumerable(_fileSystemProvaider.GetFileSystemItems(_path)).GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()

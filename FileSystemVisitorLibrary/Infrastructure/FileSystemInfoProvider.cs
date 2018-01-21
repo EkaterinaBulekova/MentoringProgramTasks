@@ -27,7 +27,7 @@ namespace FileSystemVisitorLibrary.Infrastructure
                     yield return entity;
                     if (!isFile)
                     {
-                        foreach (var item in GetFileSystemItems(entity.Name))
+                        foreach (var item in GetFileSystemItems(entity.FullName))
                         {
                             yield return item;
                         }

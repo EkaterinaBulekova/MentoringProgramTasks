@@ -5,20 +5,22 @@ using System.Linq;
 using FileSystemVisitorLibrary.Data;
 using FileSystemVisitorLibrary.Infrastructure;
 
-
 namespace FileSystemVisitorLibrary
 {
+    /// <summary>
+    /// Supports iteration over a collection of the FileSystemItem type. 
+    /// Also fires the events and allow skip or stop iteration. 
+    /// </summary>
     public class FileSystemVisitor : IEnumerable<FileSystemItem>
     {
         private readonly IFileSystemInfoProvider _fileSystemProvaider;
+        private readonly Func<FileSystemItem, bool> _filter;
         private readonly string _path;
         private bool _isStop;
         private bool _isSkip;
-        private readonly Func<FileSystemItem, bool> _filter;
 
         /// <summary>
-        /// Initializes a new instance of the FileSystemVisitor class on the specified
-        //     path.
+        /// Initializes a new instance of the FileSystemVisitor class on the specified path.
         /// </summary>
         /// <param name="provider"> A IFileSystemInfoProvaider that alows get collection of FileSystemItems. </param>
         /// <param name="path"> A string specifying the path on which to create the DirectoryInfo. </param>
@@ -29,6 +31,7 @@ namespace FileSystemVisitorLibrary
             _path = path;
             _filter = filter ?? (_ => true);
         }
+
         /// <summary>
         /// Represents the method that will handle an event Finish when the event provides data.
         /// </summary>
@@ -43,23 +46,37 @@ namespace FileSystemVisitorLibrary
         /// Represents the method that will handle an event FileFound when the event provides data.
         /// </summary>
         public event EventHandler<SystemVisitorEventArgs> FileFound;
+        
         /// <summary>
         /// Represents the method that will handle an event DirectoryFound when the event provides data.
         /// </summary>
         public event EventHandler<SystemVisitorEventArgs> DirectoryFound;
+
         /// <summary>
         /// Represents the method that will handle an event FilteredFileFound when the event provides data.
         /// </summary>
         public event EventHandler<SystemVisitorEventArgs> FilteredFileFound;
+        
         /// <summary>
         /// Represents the method that will handle an event FilteredDirectoryFound when the event provides data.
         /// </summary>
         public event EventHandler<SystemVisitorEventArgs> FilteredDirectoryFound;
 
-        protected virtual void OnStart(SystemVisitorEventArgs e)
+        /// <summary>
+        /// Returns an enumerator that iterates throw the collection of FileSystemItem  
+        /// </summary>
+        /// <returns>IEnumerator of FileSystemItem type</returns>
+        public IEnumerator<FileSystemItem> GetEnumerator()
         {
-            Start?.Invoke(this, e);
+            return GetFileSystemEnumerable(_fileSystemProvaider.GetFileSystemItems(_path)).GetEnumerator();
         }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        protected virtual void OnStart(SystemVisitorEventArgs e) => Start?.Invoke(this, e);
 
         protected virtual void OnFinish(SystemVisitorEventArgs e) => Finish?.Invoke(this, e);
 
@@ -96,54 +113,19 @@ namespace FileSystemVisitorLibrary
                     FoundItem = entity
                 };
                 if (isFile)
-                {
                     OnFileFound(args);
-                }
                 else
-                {
                     OnDirectoryFound(args);
-                }
-
-                if (filteredEntities.Contains(entity))
-                {
-                    if (isFile)
-                    {
-                        OnFilteredFileFound(args);
-                    }
-                    else
-                    {
-                        OnFilteredDirectoryFound(args);
-                    }
-
-                    if (_isStop)
-                    {
-                        yield break;
-                    }
-
-                    if (!_isSkip)
-                    {
-                        yield return entity;
-
-                    }
-                }
+                if (!filteredEntities.Contains(entity)) continue;
+                if (isFile)
+                    OnFilteredFileFound(args);
+                else
+                    OnFilteredDirectoryFound(args);
+                if (_isStop) yield break;
+                if (!_isSkip) yield return entity;
             }
+
             OnFinish(null);
         }
-
-
-        /// <summary>
-        /// Returns an enumerator that iterates throw the collection of FileSystemItem  
-        /// </summary>
-        /// <returns></returns>
-        public IEnumerator<FileSystemItem> GetEnumerator()
-        {
-            return GetFileSystemEnumerable(_fileSystemProvaider.GetFileSystemItems(_path)).GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
     }
 }

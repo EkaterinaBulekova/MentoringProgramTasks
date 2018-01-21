@@ -5,8 +5,16 @@ using FileSystemVisitorLibrary.Data;
 
 namespace FileSystemVisitorLibrary.Infrastructure
 {
-    public class FileSystemInfoProvider: IFileSystemInfoProvider
+    /// <summary>
+    /// Provide work with File System tree
+    /// </summary>
+    public class FileSystemInfoProvider : IFileSystemInfoProvider
     {
+        /// <summary>
+        /// Iterates File System tree  starts on certain path and returns Enumerable of FileSystemItem
+        /// </summary>
+        /// <param name="path"> A string specifying the path on which to create the FileSystemItem. </param>
+        /// <returns> IEnumerable of FileSystemItem </returns>
         public IEnumerable<FileSystemItem> GetFileSystemItems(string path)
         {
             if (Directory.Exists(path))
@@ -27,7 +35,7 @@ namespace FileSystemVisitorLibrary.Infrastructure
                     yield return entity;
                     if (!isFile)
                     {
-                        foreach (var item in GetFileSystemItems(entity.FullName))
+                        foreach (var item in this.GetFileSystemItems(entity.FullName))
                         {
                             yield return item;
                         }
@@ -35,6 +43,5 @@ namespace FileSystemVisitorLibrary.Infrastructure
                 }
             }
         }
-
     }
 }

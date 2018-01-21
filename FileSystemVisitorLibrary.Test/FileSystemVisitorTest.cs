@@ -32,7 +32,10 @@ namespace FileSystemVisitorLibrary.Test
         {
             // arrange 
             var provider = new MockFileSystemProvider();
-            var visitor = new FileSystemVisitor(provider, "d:", x => x.Date == new DateTime(2017, 1, 1) && x.Type == FileSystemItemType.File && x.Name.Contains("2"));
+            var visitor = new FileSystemVisitor(
+                provider,
+                "d:",
+                x => x.Date == new DateTime(2017, 1, 1) && x.Type == FileSystemItemType.File && x.Name.Contains("2"));
 
             // act  
             var result = visitor.ToList();
@@ -86,7 +89,7 @@ namespace FileSystemVisitorLibrary.Test
         {
             // arrange 
             var provider = new MockFileSystemProvider();
-            var visitor = new FileSystemVisitor(provider,"d:", x => x.Date == new DateTime(2017, 1, 1));
+            var visitor = new FileSystemVisitor(provider, "d:", x => x.Date == new DateTime(2017, 1, 1));
             List<string> receivedEvents = new List<string>();
             visitor.FilteredFileFound += (o, eventArgs) => receivedEvents.Add(eventArgs.FoundItem.Name);
 
@@ -135,6 +138,7 @@ namespace FileSystemVisitorLibrary.Test
             Assert.AreEqual(1, receivedEvents.Count);
             Assert.AreEqual("Start", receivedEvents[0]);
         }
+
         [TestMethod]
         public void GetFileSystemEnumerableEventFinishRaisedTest()
         {
@@ -189,6 +193,7 @@ namespace FileSystemVisitorLibrary.Test
             Assert.AreEqual(result[2].Name, "FileName2");
             Assert.AreEqual(result[3].Name, "FileName3");
         }
+
         [TestMethod]
         public void GetFileSystemEnumerableStopOnFilteredFileFoundTest()
         {
@@ -227,5 +232,4 @@ namespace FileSystemVisitorLibrary.Test
             Assert.AreEqual(result[3].Name, "FileName3");
         }
     }
-
 }

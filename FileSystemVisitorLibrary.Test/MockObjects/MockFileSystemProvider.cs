@@ -9,7 +9,7 @@ namespace FileSystemVisitorLibrary.Test.MockObjects
     {
         public IEnumerable<FileSystemItem> GetFileSystemItems(string path)
         {
-            List<FileSystemItem> fileSystemItems = new List<FileSystemItem>
+            var fileSystemItems = new List<FileSystemItem>
             {
                 new FileSystemItem
                 {

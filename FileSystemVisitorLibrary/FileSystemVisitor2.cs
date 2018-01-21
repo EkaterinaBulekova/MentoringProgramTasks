@@ -1,14 +1,16 @@
-﻿using FileSystemVisitorLibrary.Data;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using FileSystemVisitorLibrary.Data;
+using FileSystemVisitorLibrary.Infrastructure;
+
 
 namespace FileSystemVisitorLibrary
 {
     public class FileSystemVisitor2 : IEnumerable<FileSystemItem>
     {
+        private IFileSystemInfoProvider _fileSystemProvaider;
         private readonly string _path;
         private bool _isStop;
         private bool _isSkip;
@@ -20,8 +22,9 @@ namespace FileSystemVisitorLibrary
         /// </summary>
         /// <param name="path"> A string specifying the path on which to create the DirectoryInfo. </param>
         /// <param name="filter"> A delegete which reference to filtering method </param>
-        public FileSystemVisitor2(string path, Func<FileSystemItem, bool> filter = null)
+        public FileSystemVisitor2(IFileSystemInfoProvider provider, string path, Func<FileSystemItem, bool> filter = null)
         {
+            _fileSystemProvaider = provider;
             _path = path;
             _filter = filter ?? (_ => true);
         }
@@ -127,42 +130,13 @@ namespace FileSystemVisitorLibrary
         }
 
 
-        private IEnumerable<FileSystemItem> GetFileSystemItems(string path)
-        {
-            if (Directory.Exists(path))
-            {
-                List<FileSystemItem> directoryItems = new List<FileSystemItem>();
-                try
-                {
-                    directoryItems = Directory.GetFileSystemEntries(path).Select(_ => new FileSystemItem(_)).ToList();
-                }
-                catch
-                {
-                    // ignored
-                }
-
-                foreach (var entity in directoryItems)
-                {
-                    var isFile = entity.Type == FileSystemItemType.File;
-                    yield return entity;
-                    if (!isFile)
-                    {
-                        foreach (var item in GetFileSystemItems(entity.Name))
-                        {
-                            yield return item;
-                        }
-                    }
-                }
-            }
-        }
-
         /// <summary>
         /// Returns an enumerator that iterates throw the collection of FileSystemItem  
         /// </summary>
         /// <returns></returns>
         public IEnumerator<FileSystemItem> GetEnumerator()
         {
-            return GetFileSystemEnumerable(GetFileSystemItems(_path)).GetEnumerator();
+            return GetFileSystemEnumerable(_fileSystemProvaider.GetFileSystemItems(_path)).GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()

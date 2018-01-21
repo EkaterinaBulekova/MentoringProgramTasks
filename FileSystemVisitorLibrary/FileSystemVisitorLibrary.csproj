@@ -42,7 +42,11 @@
   <ItemGroup>
     <Compile Include="Data\FileSystemItem.cs" />
     <Compile Include="FileSystemVisitor.cs" />
+    <Compile Include="FileSystemVisitor2.cs" />
+    <Compile Include="Infrastructure\FileSystemInfoProvider.cs" />
+    <Compile Include="Infrastructure\IFileSistemInfoProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SystemVisitorEventArgs.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

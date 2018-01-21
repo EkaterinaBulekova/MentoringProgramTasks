@@ -1,6 +1,7 @@
 ﻿using System;
 using FileSystemVisitorLibrary;
 using FileSystemVisitorLibrary.Data;
+using FileSystemVisitorLibrary.Infrastructure;
 
 namespace ConsoleFileSystemVisitor
 {
@@ -10,7 +11,8 @@ namespace ConsoleFileSystemVisitor
         {
             var stringForSkip = "vs";
             var stringForStop = "sssln";
-            var visitor = new FileSystemVisitor2("d:/MyProject", (x) => x.Date <= new DateTime(2018, 01, 18) && x.Type == FileSystemItemType.File);
+            var fileProvider = new FileSystemInfoProvider();
+            var visitor = new FileSystemVisitor2(fileProvider, "d:/MyProject", (x) => x.Date <= new DateTime(2018, 01, 18) && x.Type == FileSystemItemType.File);
             visitor.Start += (o, eventArgs) => Console.WriteLine("Start !!!");
             visitor.Finish += (o, eventArgs) => Console.WriteLine("Finish !!!");
             visitor.FileFound += (o, eventArgs) => Console.WriteLine($"File {eventArgs.FoundItem.Name} found!!!");
